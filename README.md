@@ -1,0 +1,95 @@
+# auto-crop
+
+Automatically crops scanned PDF pages to the sheet of paper, removing the scanner
+lid or background around it.
+
+```
+auto-crop scan.pdf cropped.pdf
+```
+
+```
+page 1: cropped [0.0 0.0 612.0 1008.0] -> [9.2 171.0 601.3 1008.0]
+cropped 1 page(s), written to cropped.pdf
+```
+
+- **Lossless:** the scanned images are not touched. Only the visible area of each page
+  is changed, so the quality, the file size and any OCR text layer stay the same.
+- **Only scanned pages are cropped:** pages that are not a scanned image (text,
+  vector graphics, …) are copied unchanged.
+- **Works with dark and light scanner lids,** including lids with several grey tones
+  and paper that touches the edges of the scan.
+- **Works as a [simple-scan](#use-with-simple-scan) postprocessing script.**
+
+## Installation
+
+Requires a Rust toolchain ([rustup.rs](https://rustup.rs)).
+
+```
+cargo install --path .
+```
+
+This installs `auto-crop` to `~/.cargo/bin`.
+
+## Usage
+
+```
+auto-crop <INPUT> <OUTPUT>
+```
+
+The input and output may be the same file to crop in place; the file is replaced only
+after the new version has been written completely.
+
+Progress is printed to stderr, one line per page:
+
+| Message | Meaning |
+|---|---|
+| `cropped [...] -> [...]` | Page box before and after, in PDF points. |
+| `skipped, not a scanned page` | No image covers most of the page. |
+| `skipped, no paper detected` | The scan shows no distinct sheet against a background. |
+| `already tightly cropped` | Less than 1 pt would be trimmed on every side. |
+| `skipped, <error>` | The page could not be processed, e.g. an unsupported image encoding. It is left unchanged. |
+
+The exit status is non-zero only if the file cannot be read or written.
+
+## Use with simple-scan
+
+auto-crop can be used directly as the postprocessing script of GNOME Document Scanner
+(simple-scan). It recognises simple-scan's calling convention automatically.
+
+1. Install auto-crop as above.
+2. In simple-scan, open **Preferences → Postprocessing**:
+   - enable postprocessing,
+   - set **Script** to the full path, e.g. `/home/<you>/.cargo/bin/auto-crop`
+     (simple-scan may not have `~/.cargo/bin` on its `PATH`),
+   - leave **Script arguments** empty.
+
+When you save a scan as PDF, it is cropped in place:
+
+- **Keep original file** off: the saved file is replaced by the cropped version.
+- **Keep original file** on: the cropped version is saved under the chosen name, and
+  the original is kept next to it as `<name>-original.pdf`.
+
+Other formats (JPEG, PNG, …) are left unchanged. auto-crop's messages appear in
+simple-scan's debug log (`simple-scan --debug`).
+
+## Limitations
+
+- **Supported image encodings:** JPEG and losslessly compressed (Flate/LZW) or
+  uncompressed images. Pages stored as JPEG 2000, CCITT fax or JBIG2 (common for
+  black-and-white scans) are skipped.
+- **The paper must be brighter than the background.** White paper on a lid that is even
+  brighter is not detected; such pages are left uncropped.
+- **No deskew:** the crop is an upright rectangle. A crooked sheet keeps small
+  background wedges in its corners; the paper itself is never cut off.
+- **One image per page:** scans split into several image strips are not recognised.
+- **The hidden area remains in the file:** the full scan is still stored and is merely
+  hidden by the page boxes, which all common viewers respect.
+
+## Development
+
+```
+cargo test
+cargo clippy --all-targets
+```
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for how it works and why it is built this way.

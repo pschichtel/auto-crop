@@ -23,6 +23,8 @@ cropped 1 page(s), written to cropped.pdf
 - **Works with dark and light scanner lids,** including lids with several grey tones
   and paper that touches the edges of the scan.
 - **Works as a [simple-scan](#use-with-simple-scan) postprocessing script.**
+- **Optional [straightening](#straightening)** of crooked, photographed or curled
+  documents with the UVDoc neural network, as a separate mode.
 
 ## Installation
 
@@ -76,6 +78,72 @@ When you save a scan as PDF, it is cropped in place:
 Other formats (JPEG, PNG, …) are left unchanged. auto-crop's messages appear in
 simple-scan's debug log (`simple-scan --debug`).
 
+## Straightening
+
+`auto-crop straighten` is a separate, manually invoked mode that flattens a document
+with a neural network ([UVDoc](https://github.com/tanguymagne/UVDoc) by default). It corrects
+rotation, perspective and curled paper, and crops to the document at the same time.
+
+```
+auto-crop straighten photo.jpg straight.jpg
+auto-crop straighten scan.pdf straight.pdf
+```
+
+- **Input:** image files (JPEG, PNG, TIFF, WebP) or PDFs. In PDFs, every scanned page
+  is straightened and resized to the straightened image; other pages are copied.
+- **Output:** images are written in the format of the output file's extension. The
+  input and output may be the same file.
+- **Not lossless:** unlike cropping, the image is resampled and re-encoded (JPEG
+  quality 90 in PDFs). A scan keeps its resolution.
+
+### Whitening
+
+```
+auto-crop straighten --whiten photo.jpg straight.jpg
+```
+
+`--whiten` also evens out the lighting after straightening: shading, fold shadows and
+a colour cast of the paper disappear and the paper becomes white, while lines and text
+keep their colour.
+
+- **Made for drawings and text on light paper.** Photos and other dark areas on the
+  page that are wider than about 4 % of the page's longer side are mistaken for shaded
+  paper and get washed out.
+- Broad shadows are removed; the crease of a fold itself can remain as a faint line.
+- This changes the lighting only. Kinks in the paper stay as they are.
+
+### The models
+
+Two models are built into the binary, so nothing needs to be downloaded. Choose with
+`--model`:
+
+| `--model` | Model | Notes |
+|---|---|---|
+| `uvdoc` (default) | [UVDoc](https://github.com/tanguymagne/UVDoc) (2023) | 45×31 grid. Fastest. Tends to keep a sliver of background rather than cut into the page. |
+| `syntheticdoc` | [SyntheticDoc](https://github.com/tanguymagne/SyntheticDoc) (2026), high-resolution model | By UVDoc's authors: same architecture, twice the input size and a finer grid, trained on simulated folds and crumples. Crops tighter and leaves no background, but can trim a few percent off the edge of the page. Takes about a second longer. |
+
+Neither removes the kinks that sharp fold creases leave in straight lines. Which one
+crops better depends on the image, so it is worth trying both.
+
+The weights are ONNX exports of the original models and come with their own licences,
+separate from this project's; see [models/README.md](models/README.md).
+
+### What to expect
+
+- **Photos of documents** (background visible all around, curled or folded paper,
+  perspective): this is what UVDoc is made for, and where it works best.
+- **Crooked flatbed scans** with the lid visible around the paper are deskewed and
+  cropped well.
+- **Paper that runs to the edge of the scan:** the model needs to see the paper's
+  edges. Where the paper touches the image edge, auto-crop shows the model an
+  artificial margin there, so no content is cut off. The remaining edges come out less
+  precisely than with plain cropping and can keep a wavy sliver of background.
+- **Already straight scans** gain nothing; use plain `auto-crop`, which is exact and
+  lossless.
+- The model predicts a coarse 45×31 grid from a small copy of the image, so edges and
+  text lines can come out slightly wavy. Check the result before discarding the
+  original.
+
 ## Limitations
 
 - **Supported image encodings:** JPEG and losslessly compressed (Flate/LZW) or
@@ -83,8 +151,9 @@ simple-scan's debug log (`simple-scan --debug`).
   black-and-white scans) are skipped.
 - **The paper must be brighter than the background.** White paper on a lid that is even
   brighter is not detected; such pages are left uncropped.
-- **No deskew:** the crop is an upright rectangle. A crooked sheet keeps small
-  background wedges in its corners; the paper itself is never cut off.
+- **No deskew when cropping:** the crop is an upright rectangle. A crooked sheet keeps
+  small background wedges in its corners; the paper itself is never cut off. Use
+  [`straighten`](#straightening) for crooked sheets.
 - **One image per page:** scans split into several image strips are not recognised.
 - **The hidden area remains in the file:** the full scan is still stored and is merely
   hidden by the page boxes, which all common viewers respect.

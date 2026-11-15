@@ -42,7 +42,7 @@ pub fn whiten(img: &RgbImage) -> RgbImage {
             let py = ((y as f32 + 0.5) * sh as f32 / h as f32 - 0.5).clamp(0.0, (sh - 1) as f32);
             let (y0, fy) = (py.floor() as u32, py.fract());
             let y1 = (y0 + 1).min(sh - 1);
-            for (x, pixel) in row.chunks_exact_mut(3).enumerate() {
+            for (x, pixel) in row.as_chunks_mut::<3>().0.iter_mut().enumerate() {
                 let px =
                     ((x as f32 + 0.5) * sw as f32 / w as f32 - 0.5).clamp(0.0, (sw - 1) as f32);
                 let (x0, fx) = (px.floor() as u32, px.fract());

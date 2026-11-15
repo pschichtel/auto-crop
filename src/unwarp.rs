@@ -221,14 +221,14 @@ impl Grid {
                 // along the row. Affine maps such as a plain rotation are reproduced exactly.
                 let gy = v as f64 * (self.rows - 1) as f64 / (height - 1) as f64;
                 let line = self.row_at(gy);
-                for (u, pixel) in row.chunks_exact_mut(3).enumerate() {
+                for (u, pixel) in row.as_chunks_mut::<3>().0.iter_mut().enumerate() {
                     let gx = u as f64 * (self.columns - 1) as f64 / (width - 1) as f64;
                     let (c, weights) = cubic_weights(gx, self.columns);
                     let points = std::array::from_fn(|k| {
                         extended(line.len(), c + k as isize - 1, |i| line[i])
                     });
                     let [x, y] = combine(points, weights);
-                    pixel.copy_from_slice(&sample(img, x, y).0);
+                    *pixel = sample(img, x, y).0;
                 }
             });
         out

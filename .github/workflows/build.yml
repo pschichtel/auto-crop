@@ -23,6 +23,11 @@ jobs:
           targets: ${{ env.TARGET }}
           components: clippy
 
+      # tract assembles its CPU kernels with a C compiler for the target. Ubuntu's
+      # musl-tools provides it as `musl-gcc`, not under the name the cc crate expects.
+      - name: Install musl toolchain
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
       - uses: Swatinem/rust-cache@v2
 
       - name: Lint
@@ -36,6 +41,8 @@ jobs:
         run: cargo build --release --target "$TARGET"
         env:
           CARGO_PROFILE_RELEASE_STRIP: "true"
+          CC_x86_64_unknown_linux_musl: musl-gcc
+          AR_x86_64_unknown_linux_musl: ar
 
       - name: Verify static linking
         run: |
